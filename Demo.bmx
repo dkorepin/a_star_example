@@ -1,9 +1,10 @@
 Include "./lib/WaypointManager.bmx";
+Include "./lib/Hero.bmx";
 
 AppTitle = "A-Star speed test";
 
 global map: TList = new TList();
-Global hero: WaypointManager = new WaypointManager(0,0);
+Global hero: THero = new THero(0,0);
 
 Graphics( 640, 480, 0);
 Init();
@@ -19,7 +20,8 @@ Function MainCycle()
 EndFunction
 
 Function Update()
-	if (MouseHit( 1 )) hero.SetTarget(mouseX()/TILE_SIZE, MouseY()/TILE_SIZE, map);
+	if (MouseHit( 1 )) hero.MoveTo(mouseX()/TILE_SIZE, MouseY()/TILE_SIZE, map);
+	hero.Update();
 EndFunction
 
 Function Draw()
@@ -41,5 +43,5 @@ Function Init()
 		Next
 	Next
 
-	hero.SetTarget(23, 2, map);
+	hero.MoveTo(23, 2, map);
 EndFunction

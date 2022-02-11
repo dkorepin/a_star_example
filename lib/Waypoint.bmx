@@ -5,17 +5,17 @@ Const WAYPOINT_MOVE_ORTHO_WEIGHT: byte = 10;
 Const WAYPOINT_MOVE_DIAGONAL_WEIGHT: byte = 14;
 
 Type TWaypoint
-	field position: Vector2 = new Vector2();
+	field position: Vector2Int = new Vector2Int();
 	field parent: TWaypoint;
 	field pathLength%;
 	field evristicDist%;
 	field weight%;
 
-	Method New(pos: Vector2)
+	Method New(pos: Vector2Int)
 		position.Set(pos);
 	EndMethod
 
-	Method New(pos: Vector2, parent: TWaypoint, moveLength%)
+	Method New(pos: Vector2Int, parent: TWaypoint, moveLength%)
 		position.Set(pos);
 		self.parent = parent;
 		if (parent)
@@ -23,7 +23,7 @@ Type TWaypoint
 		endif
 	EndMethod
 
-	Method CalcForTarget(target: Vector2)
+	Method CalcForTarget(target: Vector2Int)
 		local sX% = position.x, sy% = position.y;
 		evristicDist = 0;
 

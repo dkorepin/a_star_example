@@ -3,7 +3,7 @@ Const TILE_DRAW_SIZE: byte = 14;
 
 Type TTile
 	field waypointId: byte = 1;
-	field position: Vector2 = new Vector2();
+	field position: Vector2Int = new Vector2Int();
 
 	Method New(x%, y%)
 		position.Set(x, y);

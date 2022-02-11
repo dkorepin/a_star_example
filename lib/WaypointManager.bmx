@@ -1,25 +1,40 @@
 Include "./Waypoint.bmx";
 Include "./Tile.bmx";
+Include "./Vector2Int.bmx";
 Include "./Vector2.bmx";
 Include "./Utils.bmx";
 
 Type WaypointManager
-	field position: Vector2 = new Vector2();
-	field target: Vector2 = new Vector2();
+	'points
+	field position: Vector2Int = new Vector2Int();
+	field target: Vector2Int = new Vector2Int();
 
+	'a-star
 	field currentWaypoints: TStringMap = new TStringMap();
 	field openedList: TStringMap = new TStringMap();
 	field closedList: TStringMap = new TStringMap();
 
-	field resultWP: TWaypoint;
+	'config
+	field disableDiagonal: byte = 1, maxCycles: short = 400, moveTreshold# = 0.3;
 
-	Method New(x%, y%)
-		position.Set(x, y);
+	'result
+	field resultWP: TWaypoint;
+	field path: Tlist = new Tlist();
+
+	'moving
+	field currentWP: TWaypoint;
+	field currentWPId%;
+
+	Method New()
+	EndMethod
+
+	Method SetPosition(other: Vector2)
+		DebugLog( "Position setted "+other.ToString() )
+		position.Set(int(other.x), Int(other.y));
 	EndMethod
 
 	Method Draw()
-		SetColor( 255, 255, 255 );
-		' DrawText( "closedList: "+Len(closedList.Values())+" openedList: "+Len(openedList.Values()), 0, 400 );
+		SetColor( 255, 255, 255 );;
 
 		For Local wp: TWaypoint = EachIn openedList.Values()
 			wp.DrawOpen();
@@ -41,10 +56,12 @@ Type WaypointManager
 		EndIf
 	EndMethod
 
-	Method SetTarget(x%, y%, waypoints: TList)
+	Method SetTarget%(x%, y%, waypoints: TList)
 		currentWaypoints.Clear();
 		openedList.Clear();
 		closedList.Clear();
+		resultWP = null;
+		path.Clear();
 
 		For Local tile: TTile = EachIn waypoints
 			if (tile.waypointId = 1)
@@ -53,10 +70,34 @@ Type WaypointManager
 			EndIf
 		Next
 
+		target.Set(x, y);
+		CalcPath();
+
+		return HasPath();
+	EndMethod
+
+	Method HasPath: byte()
+		if (resultWP) return 1;
+		return 0;
+	EndMethod
+
+	Method GetVelocity: Vector2(currentPosition: Vector2)
+		local result: Vector2 = new Vector2();
+
+		if (currentWP)
+			result = new Vector2(currentWP.position.x, currentWP.position.y).Minus(currentPosition);
+
+			if (result.Magnitude() < moveTreshold) NextPathWP();
+		EndIf
+
+		Return result.Normalize();
+	EndMethod
+
+	Method RunTest()
 		local startTime% = MilliSecs();
 		local calls% = 0;
 
-		For Local j = 0 Until 20
+		For Local j = 0 Until 200
 			For Local i = 1 Until 19
 				target.Set(i+5, i);
 				CalcPath();
@@ -78,20 +119,48 @@ Type WaypointManager
 		local start: TWaypoint = new TWaypoint(position, null, 0);
 		openedList.Insert(position.ToString(), start);
 		resultWP = FindPath(start);
+
+		if (HasPath())
+			local nextWP: TWaypoint = resultWP;
+			Repeat
+				path.AddLast(nextWP);
+				nextWP = nextWP.parent;
+
+			Until nextWP.parent = null
+
+			path.Reverse();
+			SetCurrentPathWP(0);
+		EndIf
+	EndMethod
+
+	Method SetCurrentPathWP(id%)
+		if (id < path.Count())
+			currentWPId = id;
+			currentWP = TWaypoint(path.ValueAtIndex(id));
+		EndIf
+	EndMethod
+
+	Method NextPathWP()
+		if (currentWPId+1 < path.Count())
+			SetCurrentPathWP(currentWPId+1);
+		Else
+			currentWP = null;
+		EndIf
 	EndMethod
 
 	Method FindPath: TWaypoint(parent: TWaypoint, cycleId% = 0)
-		if (cycleId > 400) return null;
+		if (cycleId > maxCycles) return null;
 
-		local currentarget: Vector2= new Vector2(parent.position);
+		local currentarget: Vector2Int= new Vector2Int(parent.position);
 
 		For Local movX% = -1 Until 2
 			For Local movY% = -1 Until 2
-
+				local nowDiagonal: byte = isDiagonal(movX, movY)
 				if (movX = 0 and movY = 0) Continue;
+				if (disableDiagonal and nowDiagonal) Continue;
 
 				currentarget.Set(parent.position);
-				currentarget.Add(movX, movY);
+				currentarget.Plus(movX, movY);
 				
 				local hasWP% = closedList.Contains(currentarget.ToString());
 				if (hasWP) Continue;
@@ -103,7 +172,7 @@ Type WaypointManager
 
 				if (nearElement)
 					local moveLength% = WAYPOINT_MOVE_ORTHO_WEIGHT;
-					if (Abs(movX) + Abs(movY) > 1) moveLength = WAYPOINT_MOVE_DIAGONAL_WEIGHT;
+					if (nowDiagonal) moveLength = WAYPOINT_MOVE_DIAGONAL_WEIGHT;
 
 					local wp: TWaypoint = new TWaypoint(currentarget, parent, moveLength);
 
@@ -127,7 +196,7 @@ Type WaypointManager
 		EndIf
 	EndMethod
 
-	Method GetElement: TWaypoint(vec: Vector2)
+	Method GetElement: TWaypoint(vec: Vector2Int)
 		return TWaypoint(currentWaypoints[vec.ToString()]);
 	EndMethod
 
@@ -142,7 +211,7 @@ Type WaypointManager
 		Next
 
 		For Local wp:TWaypoint = EachIn map.Values()
-			if (wp.weight = minWeight) minWpList.AddlAst(wp);
+			if (wp.weight = minWeight) minWpList.AddLast(wp);
 		Next
 
 		if (minWpList.Count() = 1) return TWaypoint(minWpList.ValueAtIndex(0));
