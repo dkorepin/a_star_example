@@ -7,9 +7,9 @@ Type WaypointManager
 	field position: Vector2 = new Vector2();
 	field target: Vector2 = new Vector2();
 
-	field currentWaypoints: TList = new TList();
-	field openedList: TList = new TList();
-	field closedList: TList = new TList();
+	field currentWaypoints: TStringMap = new TStringMap();
+	field openedList: TStringMap = new TStringMap();
+	field closedList: TStringMap = new TStringMap();
 
 	field resultWP: TWaypoint;
 
@@ -19,13 +19,13 @@ Type WaypointManager
 
 	Method Draw()
 		SetColor( 255, 255, 255 );
-		DrawText( "closedList: "+closedList.Count()+" openedList: "+openedList.Count(), 0, 400 );
+		' DrawText( "closedList: "+Len(closedList.Values())+" openedList: "+Len(openedList.Values()), 0, 400 );
 
-		For Local wp: TWaypoint = EachIn openedList
+		For Local wp: TWaypoint = EachIn openedList.Values()
 			wp.DrawOpen();
 		Next
 
-		For Local wp: TWaypoint = EachIn closedList
+		For Local wp: TWaypoint = EachIn closedList.Values()
 			wp.DrawClose();
 		Next
 
@@ -49,98 +49,105 @@ Type WaypointManager
 		For Local tile: TTile = EachIn waypoints
 			if (tile.waypointId = 1)
 				local wp: TWaypoint = new TWaypoint(tile.position);
-				currentWaypoints.AddLast(wp);
+				currentWaypoints.Insert(tile.position.ToString(), wp);
 			EndIf
 		Next
 
 		local startTime% = MilliSecs();
-		target.Set(x, y);
-		
+		local calls% = 0;
+
+		For Local j = 0 Until 20
+			For Local i = 1 Until 19
+				target.Set(i+5, i);
+				CalcPath();
+				calls:+1;
+			Next
+			For Local i = 1 Until 19
+				target.Set(24, 19-i);
+				CalcPath();
+				calls:+1;
+			Next
+		Next
+
 		local endTime% = MilliSecs() - startTime;
-		DebugLog( "Time: "+endTime );
+		local av# = Float(endTime)/Float(calls);
+		DebugLog( "Time: "+endTime+" calls:"+calls+" average: "+av );
 	EndMethod
 
 	Method CalcPath()
 		local start: TWaypoint = new TWaypoint(position, null, 0);
-		openedList.AddLast(start);
+		openedList.Insert(position.ToString(), start);
 		resultWP = FindPath(start);
 	EndMethod
 
 	Method FindPath: TWaypoint(parent: TWaypoint, cycleId% = 0)
 		if (cycleId > 400) return null;
 
-		DebugLog( "cycle: "+cycleId+" x:"+parent.position.x+" y:"+parent.position.y );
+		local currentarget: Vector2= new Vector2(parent.position);
+
 		For Local movX% = -1 Until 2
 			For Local movY% = -1 Until 2
+
 				if (movX = 0 and movY = 0) Continue;
-				local currentarget: Vector2= new Vector2(parent.position);
-				currentarget.Add(movX, movY)
-				local hasWP: byte = 0;
 
-				For Local wp: TWaypoint = EachIn closedList
-					if (currentarget.isEqual(wp.position))
-						hasWP = 1;
-						exit;
-					EndIf
-				next
+				currentarget.Set(parent.position);
+				currentarget.Add(movX, movY);
+				
+				local hasWP% = closedList.Contains(currentarget.ToString());
 				if (hasWP) Continue;
 
-				For Local wp: TWaypoint = EachIn openedList
-					if (currentarget.isEqual(wp.position))
-						hasWP = 1;
-						exit;
-					EndIf
-				next
+				hasWP = openedList.Contains(currentarget.ToString());
 				if (hasWP) Continue;
 
-				local finded: TWaypoint = GetElement(currentarget.x, currentarget.y);
+				local nearElement: TWaypoint = GetElement(currentarget);
 
-				if (finded)
-					local le = WAYPOINT_MOVE_ORTHO_WEIGHT;
-					if (Abs(movX) + Abs(movY) > 1) le = WAYPOINT_MOVE_DIAGONAL_WEIGHT;
-					local wp: TWaypoint = new TWaypoint(currentarget, parent, le);
-					wp.Calc(target.x, target.y);
-					openedList.AddLast(wp);
+				if (nearElement)
+					local moveLength% = WAYPOINT_MOVE_ORTHO_WEIGHT;
+					if (Abs(movX) + Abs(movY) > 1) moveLength = WAYPOINT_MOVE_DIAGONAL_WEIGHT;
+
+					local wp: TWaypoint = new TWaypoint(currentarget, parent, moveLength);
+
+					wp.CalcForTarget(target);
+					openedList.Insert(wp.position.ToString(), wp);
 				EndIf
 			Next
 		Next
 
-		openedList.Remove(parent);
-		closedList.AddLast(parent);
-		local minWp: TWaypoint = GetMinWeightWP(openedList);
+		openedList.Remove(parent.position.ToString());
+		closedList.Insert(parent.position.ToString(), parent);
+		local minWeightWp: TWaypoint = GetMinWeightWP(openedList);
 
-		if (minWp <> null)
-			if (target.isEqual(minWp.position))
-				DebugLog( "Finded "+minWp.position.x+"/"+minWp.position.y );
-				closedList.AddLast(minWp);
-				return minWp;
+		if (minWeightWp <> null)
+			if (target.isEqual(minWeightWp.position))
+				DebugLog( "Finded "+minWeightWp.position.x+"/"+minWeightWp.position.y );
+				closedList.Insert(minWeightWp.position.ToString(), minWeightWp);
+				return minWeightWp;
 			EndIf
-			return FindPath(minWp, cycleId+1);
+			return FindPath(minWeightWp, cycleId+1);
 		EndIf
 	EndMethod
 
-	Method GetElement: TWaypoint(x%, y%)
-		For Local t: TWaypoint = EachIn currentWaypoints
-			if (t.position.isEqual(x, y)) return t;
-		Next
-	
-		return null;
+	Method GetElement: TWaypoint(vec: Vector2)
+		return TWaypoint(currentWaypoints[vec.ToString()]);
 	EndMethod
 
-	Method GetMinWeightWP: TWaypoint(list: Tlist)
-		local minWeight% = 999, minWp: TWaypoint, minWpList: TList = new TList();
+	Method GetMinWeightWP: TWaypoint(map: TStringMap)
+		local minWeight% = 999, result: TWaypoint, minWpList: TList = new TList();
 
-		For Local wp:TWaypoint = EachIn list
-			if (target.isEqual(wp.position)) return wp;
+		local targetWp: TWaypoint = TWaypoint(map[target.ToSTring()]);
+		if (targetWp) return targetWp;
+
+		For Local wp:TWaypoint = EachIn map.Values()
 			if (wp.weight < minWeight) minWeight = wp.weight;
 		Next
 
-		For Local wp:TWaypoint = EachIn list
+		For Local wp:TWaypoint = EachIn map.Values()
 			if (wp.weight = minWeight) minWpList.AddlAst(wp);
 		Next
 
-		if (minWpList.Count() > 0) minWp = TWaypoint(minWpList.ValueAtIndex(Rand(0, minWpList.Count() - 1)));
+		if (minWpList.Count() = 1) return TWaypoint(minWpList.ValueAtIndex(0));
+		if (minWpList.Count() > 0) result = TWaypoint(minWpList.ValueAtIndex(Rand(0, minWpList.Count() - 1)));
 
-		return minWp;
+		return result;
 	EndMethod
 EndType

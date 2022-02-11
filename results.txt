@@ -1,0 +1,13 @@
+Tests: 720 and 7200 calls.
+
+Base test = 36sec
+DebugLog:Time: 1348 calls:720 average: 1.87222219
+DebugLog:Time: 36857 calls:7200 average: 5.11902761
+
+currentWaypoints -> map = 32sec
+DebugLog:Time: 877 calls:720 average: 1.21805561
+DebugLog:Time: 32918 calls:7200 average: 4.57194424
+
+allLists -> map = 0.1sec
+DebugLog:Time: 31 calls:720 average: 0.0430555567
+DebugLog:Time: 142 calls:7200 average: 0.0197222214

@@ -15,36 +15,36 @@ Type TWaypoint
 		position.Set(pos);
 	EndMethod
 
-	Method New(pos: Vector2, parent: TWaypoint, le%)
+	Method New(pos: Vector2, parent: TWaypoint, moveLength%)
 		position.Set(pos);
 		self.parent = parent;
 		if (parent)
-			self.pathLength = parent.pathLength + le;
+			self.pathLength = parent.pathLength + moveLength;
 		endif
 	EndMethod
 
-	Method Calc(tx%, ty%)
+	Method CalcForTarget(target: Vector2)
 		local sX% = position.x, sy% = position.y;
 		evristicDist = 0;
 
 		Repeat
-			if (sX > tx)
+			if (sX > target.x)
 				sX:-1;
 				evristicDist:+WAYPOINT_MOVE_ORTHO_WEIGHT;
 			EndIf
-			if (sX < tx)
+			if (sX < target.x)
 				sX:+1;
 				evristicDist:+WAYPOINT_MOVE_ORTHO_WEIGHT;
 			EndIf
-			if (sY > ty)
+			if (sY > target.y)
 				sY:-1;
 				evristicDist:+WAYPOINT_MOVE_ORTHO_WEIGHT;
 			EndIf
-			if (sY < ty)
+			if (sY < target.y)
 				sY:+1;
 				evristicDist:+WAYPOINT_MOVE_ORTHO_WEIGHT;
 			EndIf
-		Until sX = tx and sY = ty
+		Until sX = target.x and sY = target.y
 
 		weight = pathLength + evristicDist;
 	EndMethod

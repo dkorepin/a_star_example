@@ -33,4 +33,8 @@ Type Vector2
 	Method isEqual(x%, y%)
 		return self.x = x and self.y = y;
 	EndMethod
+
+	Method ToString$()
+		return x+":"+y;
+	EndMethod
 EndType
